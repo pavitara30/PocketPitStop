@@ -108,16 +108,18 @@ def find_rest(t, a, gps):
     return slice(max(i - n + 1, 0), i + 1)
 
 
-def align(t, a, w, gps, rest):
+def align(t, a, gps, rest):
     """R: rows = kart forward/left/up in phone axes, so a_kart = a_phone @ R.T.
     'down' comes from the parked reading; 'forward' from the horizontal direction whose
-    accel best explains GPS dv/dt (or the first launch if there's no GPS). iOS and Android
-    disagree on the accel sign, so we check it: gyro yaw must turn the same way as the GPS track."""
+    accel best explains GPS dv/dt (or the first launch if there's no GPS). Phones and
+    browsers disagree on the accel sign, so we check it: sideways g must point the same way
+    as the GPS track's turning (speed x turn rate)."""
     for sign in (1, -1):
         sf = sign * a
+        sf_lp = lowpass(sf, 0.5)
         up = unit(sf[rest].mean(0))
         e1 = unit(np.cross(up, [1, 0, 0] if abs(up[0]) < 0.9 else [0, 1, 0])); e2 = np.cross(up, e1)
-        H = lowpass(sf, 0.5) @ np.column_stack([e1, e2])          # horizontal accel (2-D)
+        H = sf_lp @ np.column_stack([e1, e2])                     # horizontal accel (2-D)
         if gps is not None:
             m = (gps["t"] > t[0]) & (gps["t"] < t[-1])
             dv = np.gradient(gps["v"], gps["t"]) / G
@@ -132,10 +134,11 @@ def align(t, a, w, gps, rest):
             print("! no GPS: accel sign convention assumed, left/right may be swapped")
             return R, sign
         m = (gps["v"] > 3) & (gps["t"] > t[0]) & (gps["t"] < t[-1])
-        yaw = np.interp(gps["t"][m], t, lowpass(w, 0.5) @ up)
-        if np.corrcoef(yaw, np.gradient(gps["hdg"], gps["t"])[m])[0, 1] > 0:
+        a_lat = np.interp(gps["t"][m], t, sf_lp @ R[1])
+        a_lat_gps = gps["v"][m] * np.gradient(gps["hdg"], gps["t"])[m] / G
+        if np.corrcoef(a_lat, a_lat_gps)[0, 1] > 0:
             return R, sign
-    raise SystemExit("Gyro and GPS disagree on turn direction - is the phone mounted rigidly?")
+    raise SystemExit("Accelerometer and GPS disagree on turn direction - is the phone mounted rigidly?")
 
 
 # ------------------------------------------------------------------ 3. sync
@@ -149,6 +152,19 @@ def gps_lag(t, a_long, gps, max_lag=2.0):
     lags = np.arange(-max_lag, max_lag + 1e-9, 0.02)
     score = [np.corrcoef(np.interp(gps["t"][m] - L, t, a_box), dv)[0, 1] for L in lags]
     return lags[int(np.argmax(score))]
+
+
+def check_gyro(t, W, gps):
+    """The gyro's yaw rate should match how fast the GPS track turns (ratio ~1). Fixes a
+    deg/s vs rad/s mix-up (ratio ~57 or ~1/57) and a flipped rotation sign (ratio < 0)."""
+    m = (gps["v"] > 3) & (gps["t"] > t[0]) & (gps["t"] < t[-1])
+    yaw = np.interp(gps["t"][m], t, lowpass(W[:, 2], 0.5))
+    psidot = np.gradient(gps["hdg"], gps["t"])[m]
+    k = float(np.dot(yaw, psidot) / np.dot(yaw, yaw))
+    if abs(k) < 0.1: W, k = W * np.pi / 180, k * 180 / np.pi       # was deg/s
+    elif abs(k) > 10: W, k = W * 180 / np.pi, k * np.pi / 180      # was rad/s, converted twice
+    if k < 0: W, k = -W, -k
+    return W, k
 
 
 # ------------------------------------------------------------------ 5. fuse
@@ -377,16 +393,17 @@ def main():
     # 2. align phone axes to kart axes
     rest = find_rest(t, a, gps)
     w = w - w[rest].mean(0)                 # gyro bias: whatever it reads while parked
-    R, conv = align(t, a, w, gps, rest)
+    R, conv = align(t, a, gps, rest)
     A_raw, W = (conv * a) @ R.T, w @ R.T
 
     # 4. filter out vibration
     A = lowpass(A_raw, args.cutoff)
 
     # 3b. GPS latency, then 5. fuse
-    lag, v, v_acc, dist, tc, laps, line = 0.0, None, None, None, np.array([]), pd.DataFrame(), None
+    lag, v, v_acc, dist, tc, laps, line, gyro_k = 0.0, None, None, None, np.array([]), pd.DataFrame(), None, None
     if gps is not None:
         lag = gps_lag(t, A[:, 0], gps); gps["t"] = gps["t"] - lag
+        W, gyro_k = check_gyro(t, W, gps)
         v, _ = kalman_speed(t, A[:, 0], gps)
         v_acc = np.cumsum(A[:, 0] * G) / FS; v_acc += np.interp(t[0], gps["t"], gps["v"]) - v_acc[0]
         dist = np.cumsum(v) / FS
@@ -419,6 +436,7 @@ def main():
         gm = (gps["t"] > t[0]) & (gps["t"] < t[-1])
         s["gps_rate_hz"] = round(1 / np.median(np.diff(gps["t"])), 2)
         s["gps_lag_s"] = round(float(lag), 2)
+        s["gyro_vs_gps_turn_rate"] = round(gyro_k, 2)
         s["top_speed_kmh"] = round(float(v.max() * 3.6), 1)
         s["kalman_vs_gps_rmse_kmh"] = round(float(np.sqrt(np.mean((np.interp(gps["t"][gm], t, v) - gps["v"][gm]) ** 2)) * 3.6), 2)
         s["accel_only_drift_kmh"] = round(float(np.abs(v_acc - v).max() * 3.6), 1)

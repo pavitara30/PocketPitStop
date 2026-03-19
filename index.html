@@ -3,51 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kart telemetry</title>
-<meta name="description" content="Turn a phone's sensor log from a go-kart into g-forces, a track map and lap times. Runs in your browser.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 4 4%27%3E%3Cpath fill=%27%23d7263d%27 d=%27M0 0h2v2H0zM2 2h2v2H2z%27/%3E%3Cpath fill=%27%23fff%27 d=%27M2 0h2v2H2zM0 2h2v2H0z%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#000000">
+<title>PocketPitStop – go-kart telemetry from your phone</title>
+<meta name="description" content="Record a go-kart session on your phone and get g-forces, a track map and lap times. Runs in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 4 4%27%3E%3Cpath fill=%27%23f5b400%27 d=%27M0 0h4v4H0z%27/%3E%3Cpath fill=%27%23000%27 d=%27M2 0h2v2H2zM0 2h2v2H0z%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Saira:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Palette taken from the kart: golden-yellow bodywork, black chassis and suit, slash graphics */
   :root {
-    --tarmac: #1f2328;
-    --track: #eceef1;
-    --surface: #ffffff;
-    --kerb: #d7263d;
-    --timing: #ffd23f;
-    --purple: #7a3fd1;
-    --muted: #59616c;
-    --line: #c9ced5;
+    --black: #000;
+    --ink: #1a1a1a;
+    --yellow: #f5b400;
+    --yellow-soft: #fff3cc;
+    --paper: #f1f1ee;
+    --surface: #fff;
+    --muted: #5a5a5a;
+    --line: #cdcdc8;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; background: var(--track); color: var(--tarmac);
-    font: 400 17px/1.55 "Saira", system-ui, sans-serif;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 17px/1.55 "Barlow", system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
   }
-  .kerb { height: 12px; background: repeating-linear-gradient(90deg, var(--kerb) 0 32px, #fff 32px 64px); }
-  main { max-width: 980px; margin: 0 auto; padding: 40px 20px 64px; }
-  h1, h2, .readout b { font-family: "Saira Condensed", "Saira", sans-serif; }
-  h1 { font-weight: 800; font-size: clamp(44px, 9vw, 84px); line-height: .95; letter-spacing: -.01em; margin: 0 0 14px; }
-  h2 { font-weight: 800; font-size: 30px; line-height: 1.1; margin: 48px 0 12px; }
+  h1, h2, .readout b, button, a.save { font-family: "Barlow Condensed", "Barlow", sans-serif; }
+  h2 { font-weight: 800; font-style: italic; font-size: 32px; line-height: 1.1; margin: 48px 0 12px; }
   p { max-width: 64ch; margin: 0 0 12px; }
-  .lede { font-size: 19px; color: var(--muted); }
-  a { color: var(--tarmac); text-underline-offset: 3px; }
-  :focus-visible { outline: 3px solid var(--purple); outline-offset: 2px; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--black); outline-offset: 2px; box-shadow: 0 0 0 6px var(--yellow); }
 
-  /* input */
-  .bench { margin-top: 28px; background: var(--surface); border: 2px solid var(--tarmac); padding: 20px; }
+  /* hero: black like the chassis, yellow lettering like the side panel */
+  .hero { background: var(--black); color: #fff; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 44px 20px 36px; }
+  h1 {
+    font-weight: 800; font-style: italic; font-size: clamp(52px, 12vw, 112px); line-height: .9;
+    letter-spacing: -.015em; margin: 0 0 18px; color: var(--yellow);
+  }
+  .hero .lede { font-size: 19px; color: #d9d9d9; }
+  .slashes {   /* the kart's diagonal speed stripes */
+    height: 16px;
+    background: repeating-linear-gradient(115deg, var(--yellow) 0 16px, var(--black) 16px 22px);
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 12px 20px 64px; }
+
+  /* panels */
+  .bench { margin-top: 28px; background: var(--surface); border: 3px solid var(--black); padding: 20px; }
+  .bench h2 { margin: 0 0 8px; font-size: 30px; }
+  .bench .note { color: var(--muted); font-size: 16px; }
   .drop {
     display: block; border: 2px dashed var(--line); padding: 26px 18px; text-align: center; cursor: pointer;
     transition: border-color .15s, background .15s;
   }
-  .drop:hover, .drop.over { border-color: var(--kerb); background: #fff5f6; }
+  .drop:hover, .drop.over { border-color: var(--black); background: var(--yellow-soft); }
   .drop strong { display: block; font-size: 20px; }
   .drop span { color: var(--muted); font-size: 15px; }
   .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  .fname { font-weight: 600; color: var(--kerb); }
+  .fname { font-weight: 600; margin-top: 4px; }
+  .fname:not(:empty)::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; background: var(--yellow); border: 2px solid var(--black); }
   details.opts { margin-top: 14px; }
   details.opts summary { cursor: pointer; font-weight: 600; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 12px; }
@@ -58,67 +74,94 @@
     border: 1px solid var(--line); background: #fff; border-radius: 0;
   }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; align-items: center; }
-  button {
-    font: 600 17px/1 "Saira", sans-serif; padding: 14px 22px; cursor: pointer; border-radius: 0;
-    border: 2px solid var(--tarmac); background: #fff; color: var(--tarmac);
+  button, a.save {
+    font-weight: 700; font-size: 20px; line-height: 1; padding: 13px 22px; cursor: pointer; border-radius: 0;
+    border: 3px solid var(--black); background: #fff; color: var(--black); text-decoration: none;
   }
-  button.go { background: var(--kerb); border-color: var(--kerb); color: #fff; }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  #status { min-height: 1.5em; margin-top: 14px; font-weight: 600; }
-  #status.err { color: var(--kerb); }
+  button.go { background: var(--yellow); }
+  button:hover:not(:disabled), a.save:hover { background: var(--black); color: var(--yellow); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .recstatus, #status { min-height: 1.5em; font-weight: 600; }
+  .recstatus { margin-top: 12px; }
+  #status { margin-top: 18px; }
+  .recstatus.err, #status.err { color: #b3261e; }
   details.log { margin-top: 6px; font-size: 14px; color: var(--muted); }
-  details.log pre { white-space: pre-wrap; max-height: 260px; overflow: auto; background: var(--track); padding: 10px; font-size: 12px; }
+  details.log pre { white-space: pre-wrap; max-height: 260px; overflow: auto; background: #e6e6e2; padding: 10px; font-size: 12px; }
 
-  /* results: the timing board */
-  #results[hidden] { display: none; }
-  .simnote { margin-top: 40px; padding: 10px 14px; border-left: 6px solid var(--timing); background: #fff8dc; }
+  /* timing boards (live recorder + results) */
+  .simnote { margin-top: 40px; padding: 10px 14px; border-left: 8px solid var(--black); background: var(--yellow-soft); }
   .board {
-    margin-top: 16px; background: var(--tarmac); color: #fff; padding: 22px 22px 18px;
+    margin-top: 16px; background: var(--black); color: #fff; padding: 22px 22px 18px;
     display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 16px 20px;
-    border-bottom: 10px solid; border-image: repeating-linear-gradient(90deg, var(--kerb) 0 32px, #fff 32px 64px) 10;
+    border-bottom: 12px solid; border-image: repeating-linear-gradient(115deg, var(--yellow) 0 16px, var(--black) 16px 22px) 12;
   }
-  .readout span { display: block; font-size: 14px; color: #b8c0ca; }
-  .readout b { display: block; font-weight: 600; font-size: 40px; line-height: 1.05; color: var(--timing); white-space: nowrap; }
-  .readout b small { font-size: 18px; font-weight: 600; margin-left: 4px; color: #e9d38a; }
+  .live { margin: 16px 0 4px; }
+  .readout span { display: block; font-size: 14px; color: #bdbdbd; }
+  .readout b { display: block; font-weight: 700; font-size: 42px; line-height: 1.05; color: var(--yellow); white-space: nowrap; }
+  .readout b small { font-size: 18px; font-weight: 600; margin-left: 4px; color: #ffd75e; }
   .readout.best { grid-column: 1 / -1; }
-  .readout.best b { font-size: clamp(64px, 16vw, 128px); font-weight: 800; color: #b98cff; }
-  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); }
+  .readout.best b { font-size: clamp(68px, 17vw, 136px); font-weight: 800; font-style: italic; }
+  .tablewrap { overflow-x: auto; background: var(--surface); border: 3px solid var(--black); }
   table { border-collapse: collapse; width: 100%; font-size: 15px; }
-  th, td { text-align: right; padding: 8px 12px; border-bottom: 1px solid var(--track); white-space: nowrap; }
-  th { font-weight: 600; color: var(--muted); background: #f7f8f9; }
+  th, td { text-align: right; padding: 8px 12px; border-bottom: 1px solid #e4e4df; white-space: nowrap; }
+  th { font-weight: 600; color: #fff; background: var(--black); }
   th:first-child, td:first-child { text-align: left; }
-  tr.fastest td { color: var(--purple); font-weight: 600; }
+  tr.fastest td { background: var(--yellow); font-weight: 700; }
   .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 24px; margin: 0; }
   .checks div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
   .checks dt { color: var(--muted); }
   .checks dd { margin: 0; font-weight: 600; text-align: right; white-space: nowrap; }
   .hint { color: var(--muted); font-size: 15px; }
-  .dash { display: block; margin-top: 8px; background: #fff; border: 1px solid var(--line); }
+  .dash { display: block; margin-top: 8px; background: #fff; border: 3px solid var(--black); }
   .dash img { display: block; width: 100%; height: auto; }
   .files { display: flex; flex-wrap: wrap; gap: 10px; }
-  .files a { padding: 8px 14px; border: 1px solid var(--tarmac); background: #fff; text-decoration: none; font-size: 15px; }
-  .files a:hover { background: var(--timing); }
+  .files a { padding: 8px 14px; border: 2px solid var(--black); background: #fff; text-decoration: none; font-size: 15px; font-weight: 600; }
+  .files a:hover { background: var(--yellow); }
 
   /* explainer */
   ol.steps { padding-left: 1.3em; max-width: 70ch; }
   ol.steps li { margin-bottom: 8px; }
+  ol.steps li::marker { font-weight: 700; }
   ol.steps b { font-weight: 600; }
-  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  footer { margin-top: 56px; padding-top: 16px; border-top: 3px solid var(--black); color: var(--muted); font-size: 14px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<div class="kerb" aria-hidden="true"></div>
+<header class="hero">
+  <div class="wrap">
+    <h1>PocketPitStop</h1>
+    <p class="lede">Strap a phone to a go-kart, record a session, and get what a race engineer looks at: g-forces, braking and cornering, speed, a track map and lap times.</p>
+    <p class="lede">Recording and analysis both happen in your browser, so your data never leaves your device.</p>
+  </div>
+</header>
+<div class="slashes" aria-hidden="true"></div>
 <main>
-  <h1>Kart telemetry</h1>
-  <p class="lede">A phone strapped to a go-kart records motion and GPS. Drop in its recording and get what a race engineer looks at: g-forces, braking and cornering, speed, a track map and lap times.</p>
-  <p class="lede">The analysis is Python running in your browser, so your recording never leaves your device.</p>
 
-  <section class="bench" aria-label="Analyse a recording">
+  <section class="bench" id="rec" aria-label="Record on this phone">
+    <h2>Record on this phone</h2>
+    <p class="note">Mount the phone rigidly to the chassis, tap Start, then keep the kart still for 10 seconds before driving off. Keep this page open with the screen on until you stop.</p>
+    <div class="board live" id="live" hidden>
+      <div class="readout best"><span id="liveLabel">Keep still</span><b id="liveBig">10</b></div>
+      <div class="readout"><span>Motion data</span><b id="liveHz">–</b></div>
+      <div class="readout"><span>GPS accuracy</span><b id="liveGps">–</b></div>
+      <div class="readout"><span>GPS speed</span><b id="liveSpd">–</b></div>
+      <div class="readout"><span>G now / peak</span><b id="liveG">–</b></div>
+    </div>
+    <div class="actions">
+      <button class="go" id="recStart">Start recording</button>
+      <button class="go" id="recStop" hidden>Stop and analyse</button>
+      <a class="save" id="recSave" hidden>Save recording</a>
+    </div>
+    <div class="recstatus" id="recStatus" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="bench" aria-label="Analyse a Sensor Logger recording">
+    <h2>Or analyse a Sensor Logger recording</h2>
     <label class="drop" id="drop">
       <input type="file" id="session" accept=".zip,application/zip">
       <strong>Choose a Sensor Logger recording</strong>
-      <span>Zipped CSV export, or drag the .zip here</span>
+      <span>Zipped CSV export from the Sensor Logger app, or drag the .zip here</span>
       <div class="fname" id="fname"></div>
     </label>
 
@@ -144,9 +187,9 @@
       <button class="go" id="analyse" disabled>Analyse recording</button>
       <button id="simulate">Try a simulated session</button>
     </div>
-    <div id="status" role="status" aria-live="polite"></div>
-    <details class="log"><summary>Details</summary><pre id="log"></pre></details>
   </section>
+  <div id="status" role="status" aria-live="polite"></div>
+  <details class="log"><summary>Details</summary><pre id="log"></pre></details>
 
   <section id="results" hidden aria-label="Results">
     <p class="simnote" id="simnote" hidden>This is a simulated session with a known answer, not a real kart. Its "IR" lap times are the true lap times, so the comparison shows how close GPS lap timing gets.</p>
@@ -168,11 +211,13 @@
 
   <h2>Recording a session</h2>
   <ol class="steps">
-    <li>Install Sensor Logger and turn on Accelerometer, Gravity, Gyroscope and Location at the highest sample rate.</li>
     <li>Mount the phone rigidly to the chassis, not the steering column. Nobody touches it while driving.</li>
-    <li>Start recording, then sit still for about 10 seconds before driving off. That parked moment tells the software which way is down.</li>
-    <li>After the session, export the recording as zipped CSV and choose it above.</li>
+    <li>Open this page, tap Start recording, and allow motion and location access.</li>
+    <li>Keep the kart still for the 10-second countdown. That parked moment tells the software which way is down.</li>
+    <li>Drive. Keep Safari open with the screen on; if the screen locks, recording pauses. If your phone can't keep the screen on by itself, set Auto-Lock to Never (Settings, Display &amp; Brightness) for the session.</li>
+    <li>Tap Stop and analyse. Save the recording if you want to keep it.</li>
   </ol>
+  <p>For long sessions, the free Sensor Logger app is more robust: it records in the background, at a higher sample rate. Turn on Accelerometer, Gravity, Gyroscope and Location, export as zipped CSV, and analyse it above.</p>
 
   <h2>How it works</h2>
   <ol class="steps">
@@ -228,6 +273,7 @@ self.onmessage = async (e) => {
   try {
     ready = ready || init(m.base);
     await ready;
+    if (m.cmd === "init") return postMessage({ type: "ready" });
     let line = m.line, simulated = false;
     if (m.cmd === "simulate") {
       postMessage({ type: "status", text: "Simulating a kart session…" });
@@ -270,12 +316,20 @@ function getWorker() {
 }
 function status(t, isErr) { $("status").textContent = t; $("status").className = isErr ? "err" : ""; }
 function log(t) { const p = $("log"); p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; }
-function busy(b) { $("analyse").disabled = b || !sessionBytes; $("simulate").disabled = b; }
+let running = false;
+function busy(b) {
+  running = b;
+  $("analyse").disabled = b || !sessionBytes || !!rec;
+  $("simulate").disabled = b || !!rec;
+  $("recStart").disabled = b;
+}
 function fail(t) { status(t, true); busy(false); }
+let rec = null;
 
 function onWorker(e) {
   const m = e.data;
   if (m.type === "status") status(m.text);
+  else if (m.type === "ready") { if (!running) status("Analysis engine loaded."); }
   else if (m.type === "log") log(m.text);
   else if (m.type === "error") fail(friendly(m.text));
   else if (m.type === "done") { render(m.out, m.simulated); status("Done."); busy(false); }
@@ -304,6 +358,7 @@ async function start(cmd) {
 async function pick(file) {
   if (!file) return;
   sessionBytes = new Uint8Array(await file.arrayBuffer());
+  $("recSave").hidden = true;
   $("fname").textContent = file.name + " (" + (file.size / 1e6).toFixed(1) + " MB)";
   busy(false);
 }
@@ -314,6 +369,179 @@ drop.addEventListener("dragleave", () => drop.classList.remove("over"));
 drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); pick(e.dataTransfer.files[0]); });
 $("analyse").addEventListener("click", () => start("analyse"));
 $("simulate").addEventListener("click", () => start("simulate"));
+
+// ---------------------------------------------------------------- recorder
+// Safari gives the page motion (devicemotion) and GPS (geolocation). We save them in the same
+// layout as a Sensor Logger export, so the Python analysis runs on them unchanged.
+const STILL_S = 10;
+const clock = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+function recMsg(t, isErr) { $("recStatus").textContent = t; $("recStatus").className = "recstatus" + (isErr ? " err" : ""); }
+
+async function recStart() {
+  // iPhone: motion access has to be requested straight from the tap
+  if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+    let r = "denied";
+    try { r = await DeviceMotionEvent.requestPermission(); } catch (_) {}
+    if (r !== "granted") return recMsg("Motion access was blocked. Close this tab, open the page again in Safari, tap Start recording and choose Allow.", true);
+  }
+  if (!("ondevicemotion" in window)) return recMsg("This browser doesn't give web pages motion data. Use Safari on iPhone or Chrome on Android.", true);
+  rec = { t: [], a: [], w: [], gps: [], t0: performance.timeOrigin + performance.now(),
+          up: null, gNow: 0, gPeak: 0, lastFixAt: 0, lastFix: null, hiddenAt: 0, lock: null };
+  window.addEventListener("devicemotion", onMotion);
+  if ("geolocation" in navigator)
+    rec.watch = navigator.geolocation.watchPosition(onFix, e => {
+      if (e.code === 1) recMsg("Location access is blocked. Without it there's no speed, track map or lap times.", true);
+    }, { enableHighAccuracy: true, maximumAge: 0 });   // brief GPS dropouts just show as "lost" on the board
+  document.addEventListener("visibilitychange", onVisibility);
+  await keepAwake();
+  if (!rec.lock) recMsg("This browser can't keep the screen on by itself. Set Auto-Lock to Never for the session, or recording pauses when the screen locks.");
+  else recMsg("");
+  $("live").hidden = false; $("recStart").hidden = true; $("recStop").hidden = false; $("recSave").hidden = true;
+  busy(running);
+  rec.timer = setInterval(recTick, 250);
+  getWorker().postMessage({ cmd: "init", base: BASE });   // download the analysis engine while you drive
+}
+
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity, r = e.rotationRate || {};
+  if (!a || a.x == null) return;
+  rec.t.push(performance.timeOrigin + performance.now());
+  rec.a.push(a.x, a.y, a.z);                                   // m/s², phone axes
+  rec.w.push(r.beta || 0, r.gamma || 0, r.alpha || 0);         // °/s about x, y, z
+  if (rec.up) {   // live g: acceleration across the vertical, smoothed
+    const d = a.x * rec.up[0] + a.y * rec.up[1] + a.z * rec.up[2];
+    const h = Math.hypot(a.x - d * rec.up[0], a.y - d * rec.up[1], a.z - d * rec.up[2]) / rec.gmag;
+    rec.gNow += 0.05 * (h - rec.gNow);
+    rec.gPeak = Math.max(rec.gPeak, rec.gNow);
+  }
+}
+
+function onFix(p) {
+  const c = p.coords;
+  if (c.latitude == null) return;
+  rec.gps.push([p.timestamp > 1e12 ? p.timestamp : Date.now(), c.latitude, c.longitude, c.speed, c.accuracy, c.heading, c.altitude]);
+  rec.lastFix = c; rec.lastFixAt = Date.now();
+}
+
+async function keepAwake() {
+  try { rec.lock = await navigator.wakeLock.request("screen"); } catch (_) { rec.lock = null; }
+}
+function onVisibility() {
+  if (!rec) return;
+  if (document.hidden) { rec.hiddenAt = Date.now(); return; }
+  if (rec.hiddenAt) {
+    recMsg("Recording paused for " + Math.round((Date.now() - rec.hiddenAt) / 1000) + " s while this page wasn't on screen. Keep it open.", true);
+    rec.hiddenAt = 0;
+  }
+  keepAwake();
+}
+
+function recTick() {
+  const now = performance.timeOrigin + performance.now(), el = (now - rec.t0) / 1000, n = rec.t.length;
+  if (el > 3 && n === 0) {
+    recFinish(false);
+    return recMsg("No motion data is arriving. This device may not have motion sensors, or access was blocked.", true);
+  }
+  if (el < STILL_S) { $("liveLabel").textContent = "Keep still"; $("liveBig").textContent = Math.ceil(STILL_S - el); }
+  else {
+    if (!rec.up && n) {   // "down" = average reading during the still countdown
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += rec.a[3 * i]; y += rec.a[3 * i + 1]; z += rec.a[3 * i + 2]; }
+      rec.gmag = Math.hypot(x, y, z) / n; rec.up = [x / n / rec.gmag, y / n / rec.gmag, z / n / rec.gmag];
+    }
+    $("liveLabel").textContent = "Recording"; $("liveBig").textContent = clock(el);
+  }
+  let k = n - 1; while (k >= 0 && rec.t[k] > now - 2000) k--;
+  $("liveHz").innerHTML = n ? Math.round((n - 1 - k) / 2) + "<small>Hz</small>" : "–";
+  const fresh = rec.lastFix && Date.now() - rec.lastFixAt < 5000;
+  $("liveGps").innerHTML = fresh ? "±" + Math.round(rec.lastFix.accuracy) + "<small>m</small>" : (rec.lastFix ? "lost" : "waiting");
+  $("liveSpd").innerHTML = fresh && rec.lastFix.speed != null && rec.lastFix.speed >= 0 ? (rec.lastFix.speed * 3.6).toFixed(0) + "<small>km/h</small>" : "–";
+  $("liveG").innerHTML = rec.up ? rec.gNow.toFixed(2) + "<small>/ " + rec.gPeak.toFixed(2) + " g</small>" : "–";
+}
+
+function recFinish(analyse) {
+  if (!rec) return;
+  window.removeEventListener("devicemotion", onMotion);
+  if (rec.watch != null) navigator.geolocation.clearWatch(rec.watch);
+  document.removeEventListener("visibilitychange", onVisibility);
+  clearInterval(rec.timer);
+  if (rec.lock) rec.lock.release().catch(() => {});
+  const r = rec; rec = null;
+  $("recStart").hidden = false; $("recStop").hidden = true; $("live").hidden = true;
+  busy(running);
+  if (!analyse) return;
+  const dur = r.t.length ? (r.t[r.t.length - 1] - r.t[0]) / 1000 : 0;
+  if (dur < STILL_S + 5) return recMsg("That was too short to analyse. Record the 10-second still start, then drive.", true);
+  const zip = sessionZip(r);
+  sessionBytes = zip;
+  const name = "pocketpitstop-" + new Date(r.t0).toISOString().slice(0, 16).replace(/[-:T]/g, "") + ".zip";
+  $("fname").textContent = "Recorded on this phone (" + clock(dur) + ", " + (zip.length / 1e6).toFixed(1) + " MB)";
+  const save = $("recSave");
+  if (save.href) URL.revokeObjectURL(save.href);
+  save.href = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
+  save.download = name; save.hidden = false;
+  recMsg("Recorded " + clock(dur) + ": " + r.t.length + " motion samples and " + r.gps.length + " GPS fixes.");
+  start("analyse");
+}
+
+// ---- Sensor Logger-style CSVs in a zip
+const ns = ms => (BigInt(Math.round(ms * 1000)) * 1000n).toString();   // epoch ms -> ns
+function imuCsv(t, v, scale) {
+  const rows = ["time,seconds_elapsed,z,y,x"];
+  for (let i = 0; i < t.length; i++)
+    rows.push(ns(t[i]) + "," + ((t[i] - t[0]) / 1000).toFixed(4) + "," + (v[3 * i + 2] * scale).toFixed(5)
+      + "," + (v[3 * i + 1] * scale).toFixed(5) + "," + (v[3 * i] * scale).toFixed(5));
+  return rows.join("\n") + "\n";
+}
+function locationCsv(g, t0) {
+  const f = (v, d) => (v == null || isNaN(v)) ? "" : (+v).toFixed(d);
+  const rows = ["time,seconds_elapsed,horizontalAccuracy,speed,bearing,altitude,latitude,longitude"];
+  for (const [t, lat, lon, spd, acc, hdg, alt] of g)
+    rows.push([ns(t), ((t - t0) / 1000).toFixed(3), f(acc, 1), spd == null || spd < 0 ? "-1" : spd.toFixed(3),
+               f(hdg, 1), f(alt, 1), lat.toFixed(7), lon.toFixed(7)].join(","));
+  return rows.join("\n") + "\n";
+}
+function sessionZip(r) {
+  const enc = new TextEncoder();
+  return zipStore([
+    ["TotalAcceleration.csv", enc.encode(imuCsv(r.t, r.a, 1))],          // m/s², includes gravity
+    ["Gyroscope.csv", enc.encode(imuCsv(r.t, r.w, Math.PI / 180))],      // rad/s
+    ["Location.csv", enc.encode(locationCsv(r.gps, r.t[0]))],
+  ]);
+}
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files) {   // minimal zip writer (no compression)
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  for (const [fname, data] of files) {
+    const name = enc.encode(fname), crc = crc32(data), size = data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + size;
+  }
+  const cdSize = central.reduce((s, p) => s + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  const all = [...parts, ...central, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(all.reduce((s, p) => s + p.length, 0));
+  let o = 0; for (const p of all) { out.set(p, o); o += p.length; }
+  return out;
+}
+$("recStart").addEventListener("click", recStart);
+$("recStop").addEventListener("click", () => recFinish(true));
 
 // ---------------------------------------------------------------- results
 const dec = new TextDecoder();

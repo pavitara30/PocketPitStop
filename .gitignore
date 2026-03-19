@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+telemetry_out/
+*_truth.json
+*_truth.npz
+*_ir_laps.csv
+.vercel
+.DS_Store
